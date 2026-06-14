@@ -1,70 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-# =====================================================================
-# PIGZ COMPLETE PERFORMANCE + HOTSPOT EXPERIMENT SCRIPT
-# DV1674 Performance Optimisation - Assignment 1
-#
-# This version is designed to collect COMPLETE evidence for:
-#   Task 1: Performance profiling for all file sizes and all thread counts
-#   Task 2: Callgrind hotspot profiling for all file sizes and all thread counts
-#
-# IMPORTANT WARNING:
-#   Full Callgrind on 1GB and 5GB files can take many hours, sometimes more
-#   than a day, and can create large output files. This script allows it because
-#   the goal is complete evidence, but it also provides switches to reduce scope
-#   if the run becomes impractical.
-#
-# ---------------------------------------------------------------------
-# COMMON RUN COMMANDS
-# ---------------------------------------------------------------------
-# Quick safety test:
-#   MODE=test RESET_RESULTS=1 ./pigz_complete_full.sh
-#
-# Complete assignment run with full normal metrics and full Callgrind:
-#   MODE=full REPEATS=3 CALLGRIND_SCOPE=all RESET_RESULTS=1 ./pigz_complete_full.sh
-#
-# If full Callgrind is too slow, use representative hotspot profiling:
-#   MODE=full REPEATS=3 CALLGRIND_SCOPE=small RESET_RESULTS=1 ./pigz_complete_full.sh
-#
-# Continue an interrupted run:
-#   MODE=full REPEATS=3 CALLGRIND_SCOPE=all RESUME=1 ./pigz_complete_full.sh
-#
-# Run only one file or selected threads for troubleshooting:
-#   MODE=full ONLY_FILES="5GB" ONLY_THREADS="8 16" CALLGRIND_SCOPE=all ./pigz_complete_full.sh
-#
-# ---------------------------------------------------------------------
-# OUTPUTS
-# ---------------------------------------------------------------------
-# Main folder:
-#   $HOME/pigz_experiment_complete
-#
-# Important output files:
-#   results/normal_results.csv
-#   results/summary_average_by_file_thread.csv
-#   results/summary_best_thread_per_file.csv
-#   results/table_execution_time_seconds.csv
-#   results/table_speedup_vs_1thread.csv
-#   results/table_memory_max_rss_kb.csv
-#   results/table_compression_ratio_percent.csv
-#   results/table_cpu_io_summary.csv
-#   results/callgrind_results.csv
-#   results/callgrind_hotspots_self.csv
-#   results/callgrind_hotspots_inclusive.csv
-#   results/callgrind_top_hotspot_by_run.csv
-#   results/report_ready_summary.md
-#   results/plots/*.png
-#   pigz_complete_final_evidence.zip
-# =====================================================================
-
+ 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   sed -n '1,95p' "$0"
   exit 0
 fi
 
-# -----------------------------
-# User options
-# -----------------------------
+
 MODE="${MODE:-full}"                         # test or full
 ROOT="${ROOT:-$HOME/pigz_experiment_complete}"
 RESET_ALL="${RESET_ALL:-0}"                 # 1 = delete entire experiment folder
@@ -133,9 +76,7 @@ if [[ "$RESET_RESULTS" == "1" ]]; then
   mkdir -p "$RESULTS" "$LOGS" "$CALLGRIND" "$PLOTS" "$FINAL_EVIDENCE"
 fi
 
-# -----------------------------
-# Helpers
-# -----------------------------
+
 bytes_for_label() {
   case "$1" in
     "1MB") echo 1000000 ;;
@@ -275,15 +216,11 @@ ensure_packages() {
   python3 --version || true
 }
 
-# -----------------------------
-# Step 1: packages
-# -----------------------------
+
 ensure_packages
 human_warning_for_callgrind
 
-# -----------------------------
-# Step 2: system info
-# -----------------------------
+
 print_banner "STEP 2: Saving system information"
 {
   echo "===== DATE ====="; date
@@ -302,9 +239,7 @@ print_banner "STEP 2: Saving system information"
   python3 --version || true
 } | tee "$SYSTEM/system_info.txt"
 
-# -----------------------------
-# Step 3: download/build Pigz
-# -----------------------------
+
 print_banner "STEP 3: Downloading and compiling Pigz with debug symbols"
 cd "$SRC"
 
@@ -331,9 +266,6 @@ if ! file "$ROOT/pigz_debug" | grep -qi "debug_info\|not stripped"; then
   echo "WARNING: file command did not clearly confirm debug symbols. Check pigz_binary_info.txt."
 fi
 
-# -----------------------------
-# Step 4: experiment matrix
-# -----------------------------
 print_banner "STEP 4: Preparing experiment matrix"
 
 if [[ "$MODE" == "test" ]]; then
@@ -379,9 +311,7 @@ echo "Normal threads: ${THREADS[*]}"
 echo "Callgrind files: ${CALLGRIND_FILES[*]:-none}"
 echo "Callgrind threads: ${CALLGRIND_THREADS[*]:-none}"
 
-# -----------------------------
-# Step 5: generate files
-# -----------------------------
+
 print_banner "STEP 5: Generating test files"
 for F in "${FILES[@]}"; do
   BYTES=$(bytes_for_label "$F")
@@ -389,9 +319,7 @@ for F in "${FILES[@]}"; do
 done
 ls -lh "$DATA"
 
-# -----------------------------
-# Step 6: normal monitored experiment
-# -----------------------------
+
 print_banner "STEP 6: Running normal monitored Pigz experiment for Task 1"
 PIGZ="$ROOT/pigz_debug"
 RESULT_CSV="$RESULTS/normal_results.csv"
@@ -453,9 +381,6 @@ done
 
 echo "Saved Task 1 normal results: $RESULT_CSV"
 
-# -----------------------------
-# Step 7: full Callgrind hotspot profiling
-# -----------------------------
 print_banner "STEP 7: Running Callgrind hotspot profiling for Task 2"
 CALLGRIND_CSV="$RESULTS/callgrind_results.csv"
 
@@ -540,9 +465,7 @@ else
   done
 fi
 
-# -----------------------------
-# Step 8: summary tables, hotspot CSVs and plots
-# -----------------------------
+
 print_banner "STEP 8: Generating Task 1 and Task 2 report-ready tables and plots"
 python3 <<'PY'
 import csv
@@ -955,9 +878,7 @@ except Exception as e:
 print("Generated report-ready files in", results)
 PY
 
-# -----------------------------
-# Step 9: print final table previews
-# -----------------------------
+
 print_banner "STEP 9: Printing final table previews"
 for f in \
   "$RESULTS/summary_average_by_file_thread.csv" \
@@ -979,9 +900,6 @@ for f in \
   fi
 done
 
-# -----------------------------
-# Step 10: hotspot preview
-# -----------------------------
 print_banner "STEP 10: Hotspot preview"
 if [[ -f "$RESULTS/callgrind_hotspots_self.csv" ]]; then
   echo "Top self hotspots:"
@@ -990,9 +908,7 @@ else
   echo "No parsed Callgrind hotspot CSV found."
 fi
 
-# -----------------------------
-# Step 11: report-ready summary and zip
-# -----------------------------
+
 print_banner "STEP 11: Report-ready summary"
 cat "$RESULTS/report_ready_summary.md" || true
 
